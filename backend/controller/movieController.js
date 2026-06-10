@@ -1,16 +1,32 @@
 const path = require('path');
+const axios = require('axios'); // Ajout d'axios pour appeler l'API TMDB
 
 const Movie = require("../model/movieModel");
 const Review = require("../model/reviewModel");
 const { createMovieValidation } = require("../validation/movieValidation");
 const { movieUploader } = require('../utils/videoUploader');
 
+// Configuration de base pour l'image haute qualité de TMDB
+const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 
 //! Get Request
 exports.allMovies = async (req, res) => {
     try {
-        const movies = await Movie.find();
-        res.status(200).json({ status: 200, movies, message: "All movies" });
+        // On récupère les films populaires globaux depuis TMDB en français
+        const response = await axios.get(`https://api.themoviedb.org/3/movie/popular?api_key=${process.env.TMDB_API_KEY}&language=fr-FR&page=1`);
+        
+        const formattedMovies = response.data.results.map(movie => ({
+            _id: movie.id.toString(), // On transforme l'ID pour correspondre au format attendu par MongoDB/Next.js
+            title: movie.title,
+            description: movie.overview,
+            thumbnail: movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image",
+            duration: "2h 00m", // TMDB ne donne pas la durée sur la liste globale, on met une valeur par défaut
+            views: Math.floor(movie.popularity),
+            averageRating: movie.vote_average / 2, // TMDB note sur 10, ton site note sur 5
+            publish_date: movie.release_date
+        }));
+
+        res.status(200).json({ status: 200, movies: formattedMovies, message: "All movies from TMDB" });
     } catch (error) {
         res.status(500).json({ status: 500, message: error.message });
     }
@@ -20,6 +36,29 @@ exports.singleMovie = async (req, res) => {
     const movieId = req.params.id;
 
     try {
+        // Si l'ID est numérique, il vient de TMDB
+        if (!isNaN(movieId)) {
+            const response = await axios.get(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}&language=fr-FR`);
+            const movieData = response.data;
+
+            const formattedMovie = {
+                _id: movieData.id.toString(),
+                title: movieData.title,
+                description: movieData.overview,
+                thumbnail: movieData.poster_path ? `${TMDB_IMAGE_BASE}${movieData.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image",
+                duration: movieData.runtime ? `${Math.floor(movieData.runtime / 60)}h ${movieData.runtime % 60}m` : "2h 00m",
+                views: Math.floor(movieData.popularity) + 1,
+                averageRating: movieData.vote_average / 2,
+                publish_date: movieData.release_date,
+                category: movieData.genres && movieData.genres.length > 0 ? movieData.genres[0].name : "Général",
+                actors: [], // Optionnel : peut être peuplé via /movie/{id}/credits si nécessaire
+                director: null
+            };
+
+            return res.status(200).json({ status: 200, movie: formattedMovie, message: "Movie fetch successfully from TMDB" });
+        }
+
+        // Sinon, recherche classique en base locale locale
         const movie = await Movie.findById(movieId).populate("actors director");
         if (!movie) {
             return res.status(404).json({ message: "Movie not found" });
@@ -34,14 +73,16 @@ exports.singleMovie = async (req, res) => {
 
 exports.movieCategories = async (req, res) => {
     try {
-        const categories = await Movie.distinct('category');
-
+        // Liste fixe des catégories populaires en Français
+        const sampleCategories = ["Action", "Comédie", "Drame", "Science-Fiction", "Horreur"];
         const categoryImages = {};
 
-        for (const category of categories) {
-            const movies = await Movie.find({ category }).limit(4);
-            const images = movies.map(movie => movie.thumbnail).slice(0, 4);
-            categoryImages[category] = images;
+        // On associe de fausses images génériques pour la liste des catégories
+        for (const cat of sampleCategories) {
+            categoryImages[cat] = [
+                "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400",
+                "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400"
+            ];
         }
 
         res.status(200).json(categoryImages);
@@ -54,37 +95,16 @@ exports.movieCategories = async (req, res) => {
 exports.topRatedMovies = async (req, res) => {
     const { limit } = req.query;
     try {
-        const categories = await Movie.distinct('category');
+        const response = await axios.get(`https://api.themoviedb.org/3/movie/top_rated?api_key=${process.env.TMDB_API_KEY}&language=fr-FR&page=1`);
+        
+        const formattedMovies = response.data.results.slice(0, parseInt(limit) || 10).map(movie => ({
+            title: movie.title,
+            averageRating: movie.vote_average / 2,
+            thumbnail: movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image"
+        }));
 
-        const topRatedMovies = {};
-
-        for (const category of categories) {
-            const movies = await Review.aggregate([
-                {
-                    $lookup: {
-                        from: 'movies',
-                        localField: 'media',
-                        foreignField: '_id',
-                        as: 'movieDetails'
-                    }
-                },
-                { $unwind: '$movieDetails' },
-                { $match: { 'movieDetails.category': category } },
-                {
-                    $group: {
-                        _id: '$media',
-                        averageRating: { $avg: '$rating' },
-                        movieDetails: { $first: '$movieDetails' }
-                    }
-                },
-                { $sort: { averageRating: -1 } },
-                { $limit: parseInt(limit) || 10 }
-            ]);
-            topRatedMovies[category] = movies.map(movie => {
-                if (limit) return movie.movieDetails.thumbnail;
-                return { title: movie.movieDetails.title, averageRating: movie.averageRating, thumbnail: movie.movieDetails.thumbnail }
-            });
-        }
+        // On organise sous une catégorie fictive "Général" ou selon la demande de ton front
+        const topRatedMovies = { "Tous les films": formattedMovies };
 
         res.status(200).json({ status: 200, message: "top rated movies fetch successfully", movies: topRatedMovies });
     } catch (error) {
@@ -95,64 +115,26 @@ exports.topRatedMovies = async (req, res) => {
 
 exports.trendingMovies = async (req, res) => {
     try {
-        const currentDate = new Date();
-
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 12;
-        const skip = (page - 1) * limit;
-
-        const recentMovies = await Movie.aggregate([
-            // {
-            //     $match: {
-            //         publish_date: { $gte: new Date(currentDate.setDate(currentDate.getDate() - 60)) }
-            //     }
-            // },
-            {
-                $lookup: {
-                    from: 'reviews',
-                    localField: '_id',
-                    foreignField: 'media',
-                    as: 'reviews'
-                }
-            },
-            {
-                $addFields: {
-                    averageRating: { $avg: '$reviews.rating' }
-                }
-            },
-            {
-                $sort: { views: -1 }
-            },
-            {
-                $skip: skip
-            },
-            {
-                $limit: limit
-            },
-            {
-                $project: {
-                    title: 1,
-                    views: 1,
-                    duration: 1,
-                    averageRating: 1,
-                    thumbnail: 1
-                }
-            }
-        ]);
-
-        const totalMovies = await Movie.countDocuments({
-            publish_date: { $gte: new Date(currentDate.setDate(currentDate.getDate() - 30)) }
-        });
-        const totalPages = Math.ceil(totalMovies / limit);
+        const response = await axios.get(`https://api.themoviedb.org/3/trending/movie/week?api_key=${process.env.TMDB_API_KEY}&language=fr-FR&page=${page}`);
+        
+        const formattedMovies = response.data.results.map(movie => ({
+            _id: movie.id.toString(),
+            title: movie.title,
+            views: Math.floor(movie.popularity),
+            duration: "2h 10m",
+            averageRating: movie.vote_average / 2,
+            thumbnail: movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image"
+        }));
 
         res.status(200).json({
             status: 200,
-            message: "Trending movies fetched successfully",
-            movies: recentMovies,
+            message: "Trending movies fetched successfully from TMDB",
+            movies: formattedMovies,
             pagination: {
                 currentPage: page,
-                totalPages,
-                hasNextPage: page < totalPages
+                totalPages: Math.min(response.data.total_pages, 500), // TMDB limite à 500 pages max
+                hasNextPage: page < response.data.total_pages
             }
         });
     } catch (error) {
@@ -161,68 +143,30 @@ exports.trendingMovies = async (req, res) => {
     }
 };
 
-
 exports.newReleased = async (req, res) => {
     try {
-        const currentDate = new Date();
-
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 12;
-        const skip = (page - 1) * limit;
-
-        const newReleasedMovies = await Movie.aggregate([
-            {
-                $match: {
-                    publish_date: { $lte: currentDate }
-                }
-            },
-            {
-                $lookup: {
-                    from: 'reviews',
-                    localField: '_id',
-                    foreignField: 'media',
-                    as: 'reviews'
-                }
-            },
-            {
-                $addFields: {
-                    averageRating: { $avg: '$reviews.rating' }
-                }
-            },
-            {
-                $sort: { publish_date: -1 }
-            },
-            {
-                $skip: skip
-            },
-            {
-                $limit: limit
-            },
-            {
-                $project: {
-                    title: 1,
-                    views: 1,
-                    duration: 1,
-                    averageRating: 1,
-                    thumbnail: 1,
-                    publish_date: 1
-                }
-            }
-        ]);
-
-        const totalMovies = await Movie.countDocuments({
-            publish_date: { $lte: currentDate }
-        });
-        const totalPages = Math.ceil(totalMovies / limit);
+        // On récupère les films actuellement au cinéma (Now Playing)
+        const response = await axios.get(`https://api.themoviedb.org/3/movie/now_playing?api_key=${process.env.TMDB_API_KEY}&language=fr-FR&page=${page}`);
+        
+        const formattedMovies = response.data.results.map(movie => ({
+            _id: movie.id.toString(),
+            title: movie.title,
+            views: Math.floor(movie.popularity),
+            duration: "1h 55m",
+            averageRating: movie.vote_average / 2,
+            thumbnail: movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image",
+            publish_date: movie.release_date
+        }));
 
         res.status(200).json({
             status: 200,
-            message: "New released movies fetched successfully",
-            movies: newReleasedMovies,
+            message: "New released movies fetched successfully from TMDB",
+            movies: formattedMovies,
             pagination: {
                 currentPage: page,
-                totalPages,
-                hasNextPage: page < totalPages
+                totalPages: Math.min(response.data.total_pages, 500),
+                hasNextPage: page < response.data.total_pages
             }
         });
     } catch (error) {
@@ -234,55 +178,26 @@ exports.newReleased = async (req, res) => {
 exports.popularMovies = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 12;
-        const skip = (page - 1) * limit;
-
-        const popularMovies = await Movie.aggregate([
-            {
-                $lookup: {
-                    from: 'reviews',
-                    localField: '_id',
-                    foreignField: 'media',
-                    as: 'reviews'
-                }
-            },
-            {
-                $addFields: {
-                    averageRating: { $avg: '$reviews.rating' }
-                }
-            },
-            {
-                $sort: { averageRating: -1 }
-            },
-            {
-                $skip: skip
-            },
-            {
-                $limit: limit
-            },
-            {
-                $project: {
-                    title: 1,
-                    views: 1,
-                    duration: 1,
-                    averageRating: 1,
-                    thumbnail: 1,
-                    publish_date: 1
-                }
-            }
-        ]);
-
-        const totalMovies = await Movie.countDocuments();
-        const totalPages = Math.ceil(totalMovies / limit);
+        const response = await axios.get(`https://api.themoviedb.org/3/movie/popular?api_key=${process.env.TMDB_API_KEY}&language=fr-FR&page=${page}`);
+        
+        const formattedMovies = response.data.results.map(movie => ({
+            _id: movie.id.toString(),
+            title: movie.title,
+            views: Math.floor(movie.popularity),
+            duration: "2h 05m",
+            averageRating: movie.vote_average / 2,
+            thumbnail: movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image",
+            publish_date: movie.release_date
+        }));
 
         res.status(200).json({
             status: 200,
-            message: "Popular movies fetched successfully",
-            movies: popularMovies,
+            message: "Popular movies fetched successfully from TMDB",
+            movies: formattedMovies,
             pagination: {
                 currentPage: page,
-                totalPages,
-                hasNextPage: page < totalPages
+                totalPages: Math.min(response.data.total_pages, 500),
+                hasNextPage: page < response.data.total_pages
             }
         });
     } catch (error) {
@@ -291,63 +206,36 @@ exports.popularMovies = async (req, res) => {
     }
 };
 
-
 exports.getMoviesByGenre = async (req, res) => {
     const { genre } = req.params;
-    const { topRated } = req.query;
-
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 12;
-        const skip = (page - 1) * limit;
-        const sortCriteria = topRated === 'true' ? { rate: -1 } : { publish_date: -1 };
+        
+        // Mapping simple pour convertir le nom du genre texte en ID TMDB
+        const genreMapping = {
+            "Action": 28, "Comédie": 35, "Drame": 18, "Science-Fiction": 878, "Horreur": 27
+        };
+        const genreId = genreMapping[genre] || 28;
 
-        const moviesByGenre = await Movie.aggregate([
-            { $match: { category: genre } },
-            {
-                $lookup: {
-                    from: 'reviews',
-                    localField: '_id',
-                    foreignField: 'media',
-                    as: 'reviews'
-                }
-            },
-            {
-                $addFields: {
-                    rate: { $avg: '$reviews.rating' }
-                }
-            },
-            {
-                $sort: sortCriteria
-            },
-            {
-                $skip: skip
-            },
-            {
-                $limit: limit
-            },
-            {
-                $project: {
-                    title: 1,
-                    views: 1,
-                    duration: 1,
-                    rate: 1,
-                    thumbnail: 1
-                }
-            }
-        ]);
-
-        const totalMovies = await Movie.countDocuments({ category: genre });
-        const totalPages = Math.ceil(totalMovies / limit);
+        const response = await axios.get(`https://api.themoviedb.org/3/discover/movie?api_key=${process.env.TMDB_API_KEY}&language=fr-FR&with_genres=${genreId}&page=${page}`);
+        
+        const formattedMovies = response.data.results.map(movie => ({
+            _id: movie.id.toString(),
+            title: movie.title,
+            views: Math.floor(movie.popularity),
+            duration: "2h 00m",
+            rate: movie.vote_average / 2,
+            thumbnail: movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image"
+        }));
 
         res.status(200).json({
             status: 200,
-            message: "Movies fetched successfully",
-            movies: moviesByGenre,
+            message: "Movies fetched successfully by genre",
+            movies: formattedMovies,
             pagination: {
                 currentPage: page,
-                totalPages,
-                hasNextPage: page < totalPages
+                totalPages: Math.min(response.data.total_pages, 500),
+                hasNextPage: page < response.data.total_pages
             }
         });
     } catch (error) {
@@ -356,32 +244,23 @@ exports.getMoviesByGenre = async (req, res) => {
     }
 };
 
-
-
-
-
 //! Post Request
 exports.createMovie = [movieUploader, createMovieValidation, async (req, res) => {
     try {
         const newMovie = await Movie.create(req.body);
-
         res.status(201).json({ status: 201, message: "Movie created successfully", movie: newMovie });
-    }
-    catch (error) {
+    } catch (error) {
         res.status(500).json({ status: 500, message: error.message });
     }
 }];
 
 exports.downloadMovie = async (req, res) => {
     const { url } = req.body;
-
     if (!url) {
         return res.status(400).json({ status: 400, message: "URL is required" });
     }
-
     try {
         const file = path.join(__dirname, "..", `public`, "videos", url);
-        // console.log(file)
         res.download(file)
     } catch (err) {
         res.status(500).json({
@@ -392,21 +271,18 @@ exports.downloadMovie = async (req, res) => {
     }
 };
 
-
 //! Put Request
 exports.updateMovie = async (req, res) => {
     const movieId = req.params.id;
-
     try {
-        const movie = await movieModel.findById(movieId);
+        const movie = await Movie.findById(movieId);
         if (!movie) {
             return res.status(404).json({ message: "Movie not found" });
         }
-
         if (createMovieValidation(req.body).error)
             return res.status(400).json({ text: createMovieValidation(req.body).error.message });
 
-        await movieModel.findByIdAndUpdate(movieId, req.body, { new: true });
+        await Movie.findByIdAndUpdate(movieId, req.body, { new: true });
         res.status(200).json({ status: 200, message: "Movie updated" });
     } catch (error) {
         res.status(500).json({ status: 500, message: error.message });
@@ -416,7 +292,6 @@ exports.updateMovie = async (req, res) => {
 //! Delete Request
 exports.deleteMovie = async (req, res) => {
     const movieId = req.params.id;
-
     try {
         const movie = await Movie.findByIdAndDelete(movieId);
         if (!movie) {
