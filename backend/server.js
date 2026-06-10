@@ -6,9 +6,8 @@ const cookieParser = require('cookie-parser');
 
 const connectDb = require('./config/db');
 
-//! Config Env
-dotEnv.config({ path: './config/config.env' });
-
+//! Config Env (Mis à jour pour lire le fichier .env standard à la racine du backend)
+dotEnv.config();
 
 //! Connect to Database
 connectDb();
@@ -19,7 +18,8 @@ const corsOptions = {
     credentials: true,
 };
 
-const app = express().use(express.json())
+const app = express()
+    .use(express.json())
     .use(cors(corsOptions))
     .use(express.urlencoded({ extended: true }))
     .use(cookieParser());
@@ -47,8 +47,10 @@ app.use("/api/support", require('./router/supportRoutes'));
 app.use("/api/like", require('./router/likeRoutes'));
 app.use("/api/search", require('./router/searchRoutes'));
 
+// Utilisation d'un port de secours (5000) au cas où process.env.PORT met du temps à se charger
+const PORT = process.env.PORT || 5000;
 
-app.listen(process.env.PORT, err => {
+app.listen(PORT, err => {
     if (err) return console.log(err);
-    console.log(`Server is running on port ${process.env.PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
