@@ -1,6 +1,8 @@
+import { API_BASE_URL } from "@/services/api";
+
 export const likeApi = async (userId, media) => {
     try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/like/like`, {
+        const response = await fetch(`${API_BASE_URL}/like/like`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -18,7 +20,7 @@ export const likeApi = async (userId, media) => {
 
 export const unlikeApi = async (userId, media) => {
     try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/like/unlike`, {
+        const response = await fetch(`${API_BASE_URL}/like/unlike`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -37,7 +39,7 @@ export const unlikeApi = async (userId, media) => {
 export const likeStatusApi = async (userId, media) => {
     try {
         const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/like/status/${userId}/${media}`,
+            `${API_BASE_URL}/like/status/${userId}/${media}`,
             {
                 method: "GET",
                 headers: {

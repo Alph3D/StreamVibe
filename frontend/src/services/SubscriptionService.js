@@ -1,8 +1,9 @@
 import useUserStore from "@/stores/useUserStore";
+import { API_BASE_URL } from "@/services/api";
 
 export const handleActivateSubscription = async (id, freeTrial, time, plan) => {
     try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/addSubscription/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/user/addSubscription/${id}`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

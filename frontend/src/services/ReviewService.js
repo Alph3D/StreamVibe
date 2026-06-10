@@ -1,12 +1,14 @@
+import { API_BASE_URL } from "@/services/api";
+
 export const fetchReviews = async (id) => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/review/${id}`);
+    const response = await fetch(`${API_BASE_URL}/review/${id}`);
     const data = await response.json();
     return data.reviews;
 }
 
 
 export const addNewReview = async (data) => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/review/`, {
+    const response = await fetch(`${API_BASE_URL}/review/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

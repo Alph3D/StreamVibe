@@ -17,8 +17,11 @@ const NewReleasedSection = () => {
 
     useEffect(() => {
         const getSeries = async () => {
-            const data = await getNewReleasedSeries() || [];
-            SetSeries(data.series);
+            const response = await getNewReleasedSeries();
+            const nextSeries = Array.isArray(response)
+                ? response
+                : response?.series;
+            setSeries(Array.isArray(nextSeries) ? nextSeries : []);
             setLoading(false);
         };
         getSeries();
@@ -62,7 +65,7 @@ const NewReleasedSection = () => {
                 {loading
                     ? Array.from({ length: 5 }).map((_, index) => <MovieCardSkeleton key={index} />) :
                     series?.length === 0 ? <span className="3xl:text-super-base xl:text-super-sm max-md:text-sm text-c-grey-60">Sorry, no series available yet. Please visit us again later.</span>
-                        : series.map(({ _id, title, totalEpisodes, thumbnail, views, averageRating }, index) => (
+                        : series?.map(({ _id, title, totalEpisodes, thumbnail, views, averageRating }) => (
                             <MovieCard key={_id} id={_id} series title={title} image={thumbnail} episodes={totalEpisodes} view={views} rate={averageRating} />
                         ))}
             </div>

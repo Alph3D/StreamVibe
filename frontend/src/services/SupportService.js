@@ -1,5 +1,7 @@
+import { API_BASE_URL } from "@/services/api";
+
 export const sendSupportRequest = async (data) => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/support/`, {
+    const response = await fetch(`${API_BASE_URL}/support/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

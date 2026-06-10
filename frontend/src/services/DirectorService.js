@@ -1,6 +1,8 @@
+import { API_BASE_URL } from "@/services/api";
+
 export const fetchDirector = async (slug) => {
     try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/director/${slug}`);
+        const response = await fetch(`${API_BASE_URL}/director/${slug}`);
         const data = await response.json();
         return data;
     } catch (error) {
@@ -10,7 +12,7 @@ export const fetchDirector = async (slug) => {
 
 export const fetchDirectorSeries = async (directorId, currentPage, page) => {
     try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/director/seriesList/${directorId}?page=${currentPage || page}`, {
+        const response = await fetch(`${API_BASE_URL}/director/seriesList/${directorId}?page=${currentPage || page}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -28,7 +30,7 @@ export const fetchDirectorSeries = async (directorId, currentPage, page) => {
 
 export const fetchDirectorMovies = async (directorId, currentPage, page) => {
     try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/director/moviesList/${directorId}?page=${currentPage || page}`, {
+        const response = await fetch(`${API_BASE_URL}/director/moviesList/${directorId}?page=${currentPage || page}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
