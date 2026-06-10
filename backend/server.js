@@ -6,8 +6,8 @@ const cookieParser = require('cookie-parser');
 
 const connectDb = require('./config/db');
 
-//! Config Env (Mis à jour pour lire le fichier .env standard à la racine du backend)
-dotEnv.config();
+//! Config Env - CORRIGÉ avec un chemin absolu pour éviter le bug "undefined"
+dotEnv.config({ path: path.resolve(__dirname, 'config', 'config.env') });
 
 //! Connect to Database
 connectDb();
@@ -47,10 +47,8 @@ app.use("/api/support", require('./router/supportRoutes'));
 app.use("/api/like", require('./router/likeRoutes'));
 app.use("/api/search", require('./router/searchRoutes'));
 
-// Utilisation d'un port de secours (5000) au cas où process.env.PORT met du temps à se charger
-const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, err => {
+app.listen(process.env.PORT || 5000, err => {
     if (err) return console.log(err);
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${process.env.PORT || 5000}`);
 });
