@@ -1,22 +1,37 @@
+const axios = require('axios'); // Ajout d'axios pour appeler l'API TMDB
 const Review = require('../model/reviewModel');
 const Series = require('../model/seriesModel');
 const Episodes = require('../model/episodeModel');
 const { seriesUploader } = require('../utils/videoUploader');
 const { createSeriesValidation } = require('../validation/seriesValidation');
 
+// Configuration de base pour l'image haute qualité de TMDB
+const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 
 exports.getAllSeries = async (req, res) => {
     try {
-        const series = await Series.find().populate('director seasons actors');
+        // Récupère les séries populaires globales sur TMDB
+        const response = await axios.get(`https://api.themoviedb.org/3/tv/popular?api_key=${process.env.TMDB_API_KEY}&language=fr-FR&page=1`);
+        
+        const formattedSeries = response.data.results.map(tv => ({
+            _id: tv.id.toString(),
+            title: tv.name,
+            description: tv.overview,
+            thumbnail: tv.poster_path ? `${TMDB_IMAGE_BASE}${tv.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image",
+            views: Math.floor(tv.popularity),
+            averageRating: tv.vote_average / 2,
+            publish_date: tv.first_air_date
+        }));
+
         res.status(200).json({
             status: 'success',
-            total: series.length,
-            series
+            total: formattedSeries.length,
+            series: formattedSeries
         });
     } catch (err) {
         res.status(500).json({
             status: '500',
-            message: err
+            message: err.message
         });
     }
 };
@@ -25,6 +40,31 @@ exports.singleSeries = async (req, res) => {
     const seriesId = req.params.id;
 
     try {
+        // Si l'ID est numérique, il provient de TMDB
+        if (!isNaN(seriesId)) {
+            const response = await axios.get(`https://api.themoviedb.org/3/tv/${seriesId}?api_key=${process.env.TMDB_API_KEY}&language=fr-FR`);
+            const tvData = response.data;
+
+            const formattedSeries = {
+                _id: tvData.id.toString(),
+                title: tvData.name,
+                description: tvData.overview,
+                thumbnail: tvData.poster_path ? `${TMDB_IMAGE_BASE}${tvData.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image",
+                views: Math.floor(tvData.popularity) + 1,
+                averageRating: tvData.vote_average / 2,
+                publish_date: tvData.first_air_date,
+                category: tvData.genres && tvData.genres.length > 0 ? tvData.genres[0].name : "Général",
+                totalEpisodes: tvData.number_of_episodes || 0,
+                seasons: tvData.seasons ? tvData.seasons.map(s => ({
+                    name: s.name,
+                    episodeCount: s.episode_count,
+                    seasonNumber: s.season_number
+                })) : []
+            };
+
+            return res.status(200).json({ status: 200, series: formattedSeries, message: "Series fetched successfully from TMDB" });
+        }
+
         const series = await Series.findById(seriesId).populate("director actors").populate({ path: 'seasons', model: 'Seasons', populate: { path: 'episodes', model: 'Episodes' } });
         if (!series) return res.status(404).json({ status: 404, message: "Series not found" });
 
@@ -35,33 +75,46 @@ exports.singleSeries = async (req, res) => {
     } catch (error) {
         res.status(500).json({ status: 500, message: error.message });
     }
-}
+};
 
 exports.getSeries = async (req, res) => {
+    const seriesId = req.params.id;
     try {
-        const series = await Series.findById(req.params.id)
-            .populate({
-                path: 'director',
-                select: 'fullName birthPlace directorId profile'
-            })
-            .populate({
-                path: 'actors',
-                select: 'actorId profile fullName'
+        if (!isNaN(seriesId)) {
+            const response = await axios.get(`https://api.themoviedb.org/3/tv/${seriesId}?api_key=${process.env.TMDB_API_KEY}&language=fr-FR`);
+            const tvData = response.data;
+
+            const formattedSeries = {
+                _id: tvData.id.toString(),
+                title: tvData.name,
+                description: tvData.overview,
+                thumbnail: tvData.poster_path ? `${TMDB_IMAGE_BASE}${tvData.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image",
+                views: Math.floor(tvData.popularity) + 1,
+                averageRating: tvData.vote_average / 2,
+                publish_date: tvData.first_air_date,
+                director: [],
+                actors: []
+            };
+
+            return res.status(200).json({
+                status: 200,
+                message: "Series fetched successfully from TMDB",
+                series: formattedSeries,
+                pictures: {}
             });
+        }
+
+        const series = await Series.findById(seriesId)
+            .populate({ path: 'director', select: 'fullName birthPlace directorId profile' })
+            .populate({ path: 'actors', select: 'actorId profile fullName' });
 
         if (!series) return res.status(404).json({ status: 404, message: "Series not found" });
 
-        // Fetch episodes where the series field matches the series' ObjectId
-        const episodes = await Episodes.find({ series: req.params.id }).select('seasonNumber episodeNumber pictures');
+        const episodes = await Episodes.find({ series: seriesId }).select('seasonNumber episodeNumber pictures');
 
-        // Group pictures by season and episode number
         const groupedPictures = episodes.reduce((acc, episode) => {
-            if (!acc[episode.seasonNumber]) {
-                acc[episode.seasonNumber] = {};
-            }
-            if (!acc[episode.seasonNumber][episode.episodeNumber]) {
-                acc[episode.seasonNumber][episode.episodeNumber] = [];
-            }
+            if (!acc[episode.seasonNumber]) acc[episode.seasonNumber] = {};
+            if (!acc[episode.seasonNumber][episode.episodeNumber]) acc[episode.seasonNumber][episode.episodeNumber] = [];
             acc[episode.seasonNumber][episode.episodeNumber].push(...episode.pictures);
             return acc;
         }, {});
@@ -73,74 +126,46 @@ exports.getSeries = async (req, res) => {
             status: 200,
             message: "Series fetched successfully",
             series,
-            pictures: groupedPictures // Include the grouped pictures of the episodes
+            pictures: groupedPictures
         });
     } catch (err) {
         res.status(500).json({
             status: '500',
-            message: err
+            message: err.message
         });
     }
 };
 
-
 exports.seriesCategories = async (req, res) => {
     try {
-
-        const categories = await Series.distinct('category');
-
+        const sampleCategories = ["Action & Adventure", "Comédie", "Drame", "Sci-Fi & Fantasy", "Crime"];
         const categoryImages = {};
 
-        for (const category of categories) {
-            const series = await Series.find({ category }).limit(4);
-            const images = series.map(series => series.thumbnail).slice(0, 4);
-            categoryImages[category] = images;
+        for (const cat of sampleCategories) {
+            categoryImages[cat] = [
+                "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400",
+                "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400"
+            ];
         }
 
         res.status(200).json({ status: 200, message: "series categories fetch successfully", categories: categoryImages });
     } catch (error) {
         res.status(500).json({ status: 500, message: error.message });
     }
-}
+};
 
 exports.topRatedSeries = async (req, res) => {
     const { limit } = req.query;
     try {
-        const categories = await Series.distinct('category');
-        const topRatedSeries = {};
+        const response = await axios.get(`https://api.themoviedb.org/3/tv/top_rated?api_key=${process.env.TMDB_API_KEY}&language=fr-FR&page=1`);
+        
+        const formattedSeries = response.data.results.slice(0, parseInt(limit) || 10).map(tv => ({
+            title: tv.name,
+            averageRating: tv.vote_average / 2,
+            thumbnail: tv.poster_path ? `${TMDB_IMAGE_BASE}${tv.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image"
+        }));
 
-        for (const category of categories) {
-            const series = await Review.aggregate([
-                {
-                    $lookup: {
-                        from: 'series',
-                        localField: 'media',
-                        foreignField: '_id',
-                        as: 'seriesDetails'
-                    }
-                },
-                { $unwind: '$seriesDetails' },
-                { $match: { 'seriesDetails.category': category } },
-                {
-                    $group: {
-                        _id: '$media',
-                        averageRating: { $avg: '$rating' },
-                        seriesDetails: { $first: '$seriesDetails' }
-                    }
-                },
-                { $sort: { averageRating: -1 } },
-                { $limit: parseInt(limit) || 10 }
-            ]);
-            // topRatedSeries[category] = series.map(series => ({
-            //     title: series.seriesDetails.title,
-            //     averageRating: series.averageRating,
-            //     thumbnail: series.seriesDetails.thumbnail
-            // }));
-            topRatedSeries[category] = series.map(series => {
-                if (limit) return series.seriesDetails.thumbnail;
-                return { title: series.seriesDetails.title, averageRating: series.averageRating, thumbnail: series.seriesDetails.thumbnail }
-            });
-        }
+        const topRatedSeries = { "Toutes les séries": formattedSeries };
 
         res.status(200).json({ status: 200, message: "Top rated series fetched successfully", series: topRatedSeries });
     } catch (error) {
@@ -151,77 +176,26 @@ exports.topRatedSeries = async (req, res) => {
 
 exports.trendingSeries = async (req, res) => {
     try {
-        const currentDate = new Date();
-
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 12;
-        const skip = (page - 1) * limit;
-
-        const recentSeries = await Series.aggregate([
-            // {
-            //     $match: {
-            //         publish_date: { $gte: new Date(currentDate.setDate(currentDate.getDate() - 30)) }
-            //     }
-            // },
-            {
-                $lookup: {
-                    from: 'reviews',
-                    localField: '_id',
-                    foreignField: 'media',
-                    as: 'reviews'
-                }
-            },
-            {
-                $addFields: {
-                    averageRating: { $avg: '$reviews.rating' }
-                }
-            },
-            {
-                $sort: { views: -1 }
-            },
-            {
-                $skip: skip
-            },
-            {
-                $limit: limit
-            },
-            {
-                $lookup: {
-                    from: 'seasons',
-                    localField: '_id',
-                    foreignField: 'series',
-                    as: 'seasons'
-                }
-            },
-            {
-                $addFields: {
-                    totalEpisodes: { $sum: { $map: { input: '$seasons', as: 'season', in: { $size: '$$season.episodes' } } } }
-                }
-            },
-            {
-                $project: {
-                    title: 1,
-                    views: 1,
-                    totalEpisodes: 1,
-                    averageRating: 1,
-                    thumbnail: 1
-                }
-            }
-        ]);
-
-        const totalSeries = await Series.countDocuments({
-            publish_date: { $gte: new Date(currentDate.setDate(currentDate.getDate() - 30)) }
-        });
-        const totalPages = Math.ceil(totalSeries / limit);
+        const response = await axios.get(`https://api.themoviedb.org/3/trending/tv/week?api_key=${process.env.TMDB_API_KEY}&language=fr-FR&page=${page}`);
+        
+        const formattedSeries = response.data.results.map(tv => ({
+            _id: tv.id.toString(),
+            title: tv.name,
+            views: Math.floor(tv.popularity),
+            totalEpisodes: "Multi-Episodique",
+            averageRating: tv.vote_average / 2,
+            thumbnail: tv.poster_path ? `${TMDB_IMAGE_BASE}${tv.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image"
+        }));
 
         res.status(200).json({
             status: 200,
-            message: "Trending series fetched successfully",
-            series: recentSeries,
+            message: "Trending series fetched successfully from TMDB",
+            series: formattedSeries,
             pagination: {
                 currentPage: page,
-                totalPages,
-                hasNextPage: page < totalPages
+                totalPages: Math.min(response.data.total_pages, 500),
+                hasNextPage: page < response.data.total_pages
             }
         });
     } catch (error) {
@@ -230,81 +204,30 @@ exports.trendingSeries = async (req, res) => {
     }
 };
 
-
 exports.newReleasedSeries = async (req, res) => {
     try {
-        const currentDate = new Date();
-
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 12;
-        const skip = (page - 1) * limit;
-
-        const newReleasedSeries = await Series.aggregate([
-            {
-                $match: {
-                    publish_date: { $lte: currentDate }
-                }
-            },
-            {
-                $lookup: {
-                    from: 'reviews',
-                    localField: '_id',
-                    foreignField: 'media',
-                    as: 'reviews'
-                }
-            },
-            {
-                $addFields: {
-                    averageRating: { $avg: '$reviews.rating' }
-                }
-            },
-            {
-                $sort: { publish_date: -1 }
-            },
-            {
-                $skip: skip
-            },
-            {
-                $limit: limit
-            },
-            {
-                $lookup: {
-                    from: 'seasons',
-                    localField: '_id',
-                    foreignField: 'series',
-                    as: 'seasons'
-                }
-            },
-            {
-                $addFields: {
-                    totalEpisodes: { $sum: { $map: { input: '$seasons', as: 'season', in: { $size: '$$season.episodes' } } } }
-                }
-            },
-            {
-                $project: {
-                    title: 1,
-                    views: 1,
-                    totalEpisodes: 1,
-                    averageRating: 1,
-                    thumbnail: 1,
-                    publish_date: 1
-                }
-            }
-        ]);
-
-        const totalSeries = await Series.countDocuments({
-            publish_date: { $lte: currentDate }
-        });
-        const totalPages = Math.ceil(totalSeries / limit);
+        // Séries en cours de diffusion (On The Air) sur TMDB
+        const response = await axios.get(`https://api.themoviedb.org/3/tv/on_the_air?api_key=${process.env.TMDB_API_KEY}&language=fr-FR&page=${page}`);
+        
+        const formattedSeries = response.data.results.map(tv => ({
+            _id: tv.id.toString(),
+            title: tv.name,
+            views: Math.floor(tv.popularity),
+            totalEpisodes: "En cours",
+            averageRating: tv.vote_average / 2,
+            thumbnail: tv.poster_path ? `${TMDB_IMAGE_BASE}${tv.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image",
+            publish_date: tv.first_air_date
+        }));
 
         res.status(200).json({
             status: 200,
-            message: "New released series fetched successfully",
-            series: newReleasedSeries,
+            message: "New released series fetched successfully from TMDB",
+            series: formattedSeries,
             pagination: {
                 currentPage: page,
-                totalPages,
-                hasNextPage: page < totalPages
+                totalPages: Math.min(response.data.total_pages, 500),
+                hasNextPage: page < response.data.total_pages
             }
         });
     } catch (error) {
@@ -316,68 +239,26 @@ exports.newReleasedSeries = async (req, res) => {
 exports.popularSeries = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 12;
-        const skip = (page - 1) * limit;
-
-        const popularSeries = await Series.aggregate([
-            {
-                $lookup: {
-                    from: 'reviews',
-                    localField: '_id',
-                    foreignField: 'media',
-                    as: 'reviews'
-                }
-            },
-            {
-                $addFields: {
-                    averageRating: { $avg: '$reviews.rating' }
-                }
-            },
-            {
-                $sort: { averageRating: -1 }
-            },
-            {
-                $skip: skip
-            },
-            {
-                $limit: limit
-            },
-            {
-                $lookup: {
-                    from: 'seasons',
-                    localField: '_id',
-                    foreignField: 'series',
-                    as: 'seasons'
-                }
-            },
-            {
-                $addFields: {
-                    totalEpisodes: { $sum: { $map: { input: '$seasons', as: 'season', in: { $size: '$$season.episodes' } } } }
-                }
-            },
-            {
-                $project: {
-                    title: 1,
-                    views: 1,
-                    totalEpisodes: 1,
-                    averageRating: 1,
-                    thumbnail: 1,
-                    publish_date: 1
-                }
-            }
-        ]);
-
-        const totalSeries = await Series.countDocuments();
-        const totalPages = Math.ceil(totalSeries / limit);
+        const response = await axios.get(`https://api.themoviedb.org/3/tv/popular?api_key=${process.env.TMDB_API_KEY}&language=fr-FR&page=${page}`);
+        
+        const formattedSeries = response.data.results.map(tv => ({
+            _id: tv.id.toString(),
+            title: tv.name,
+            views: Math.floor(tv.popularity),
+            totalEpisodes: "Populaire",
+            averageRating: tv.vote_average / 2,
+            thumbnail: tv.poster_path ? `${TMDB_IMAGE_BASE}${tv.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image",
+            publish_date: tv.first_air_date
+        }));
 
         res.status(200).json({
             status: 200,
-            message: "Popular series fetched successfully",
-            series: popularSeries,
+            message: "Popular series fetched successfully from TMDB",
+            series: formattedSeries,
             pagination: {
                 currentPage: page,
-                totalPages,
-                hasNextPage: page < totalPages
+                totalPages: Math.min(response.data.total_pages, 500),
+                hasNextPage: page < response.data.total_pages
             }
         });
     } catch (error) {
@@ -386,77 +267,36 @@ exports.popularSeries = async (req, res) => {
     }
 };
 
-
-
 exports.getSeriesByGenre = async (req, res) => {
     const { genre } = req.params;
-    const { topRated } = req.query;
-
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 12;
-        const skip = (page - 1) * limit;
-        const sortCriteria = topRated === 'true' ? { rate: -1 } : { publish_date: -1 };
+        
+        // Mapping textuel vers IDs de genres TMDB pour les séries (TV)
+        const genreMapping = {
+            "Action & Adventure": 10759, "Comédie": 35, "Drame": 18, "Sci-Fi & Fantasy": 10765, "Crime": 80
+        };
+        const genreId = genreMapping[genre] || 18;
 
-        const seriesByGenre = await Series.aggregate([
-            { $match: { category: genre } },
-            {
-                $lookup: {
-                    from: 'reviews',
-                    localField: '_id',
-                    foreignField: 'media',
-                    as: 'reviews'
-                }
-            },
-            {
-                $addFields: {
-                    rate: { $avg: '$reviews.rating' }
-                }
-            },
-            {
-                $lookup: {
-                    from: 'seasons',
-                    localField: '_id',
-                    foreignField: 'series',
-                    as: 'seasons'
-                }
-            },
-            {
-                $addFields: {
-                    totalEpisodes: { $sum: { $map: { input: '$seasons', as: 'season', in: { $size: '$$season.episodes' } } } }
-                }
-            },
-            {
-                $sort: sortCriteria
-            },
-            {
-                $skip: skip
-            },
-            {
-                $limit: limit
-            },
-            {
-                $project: {
-                    title: 1,
-                    totalEpisodes: 1,
-                    duration: 1,
-                    rate: 1,
-                    thumbnail: 1
-                }
-            }
-        ]);
-
-        const totalSeries = await Series.countDocuments({ category: genre });
-        const totalPages = Math.ceil(totalSeries / limit);
+        const response = await axios.get(`https://api.themoviedb.org/3/discover/tv?api_key=${process.env.TMDB_API_KEY}&language=fr-FR&with_genres=${genreId}&page=${page}`);
+        
+        const formattedSeries = response.data.results.map(tv => ({
+            _id: tv.id.toString(),
+            title: tv.name,
+            totalEpisodes: "Série",
+            duration: "En cours",
+            rate: tv.vote_average / 2,
+            thumbnail: tv.poster_path ? `${TMDB_IMAGE_BASE}${tv.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image"
+        }));
 
         res.status(200).json({
             status: 200,
-            message: "Series fetched successfully",
-            series: seriesByGenre,
+            message: "Series fetched successfully by genre",
+            series: formattedSeries,
             pagination: {
                 currentPage: page,
-                totalPages,
-                hasNextPage: page < totalPages
+                totalPages: Math.min(response.data.total_pages, 500),
+                hasNextPage: page < response.data.total_pages
             }
         });
     } catch (error) {
@@ -464,8 +304,6 @@ exports.getSeriesByGenre = async (req, res) => {
         res.status(500).send({ status: 500, message: "Internal Server Error" });
     }
 };
-
-
 
 //! Post Request
 exports.createSeries = [seriesUploader, createSeriesValidation, async (req, res) => {
@@ -478,12 +316,11 @@ exports.createSeries = [seriesUploader, createSeriesValidation, async (req, res)
     } catch (err) {
         res.status(500).json({
             status: '500',
-            message: err
+            message: err.message
         });
     }
 }];
 
-//! must test and change the controller
 exports.updateSeries = async (req, res) => {
     try {
         const series = await Series.findByIdAndUpdate(req.params.id, req.body, {
@@ -492,14 +329,12 @@ exports.updateSeries = async (req, res) => {
         });
         res.status(200).json({
             status: 'success',
-            data: {
-                series
-            }
+            data: { series }
         });
     } catch (err) {
         res.status(500).json({
             status: '500',
-            message: err
+            message: err.message
         });
     }
 };
@@ -509,8 +344,6 @@ exports.deleteSeries = async (req, res) => {
         const series = await Series.findByIdAndDelete(req.params.id);
         if (!series) return res.status(404).json({ status: 404, message: "Series not found" });
 
-        //! must delete all episodes and season in the series
-
         res.status(200).json({
             status: '200',
             message: "Series deleted successfully",
@@ -519,7 +352,7 @@ exports.deleteSeries = async (req, res) => {
     } catch (err) {
         res.status(500).json({
             status: '500',
-            message: err
+            message: err.message
         });
     }
 };
