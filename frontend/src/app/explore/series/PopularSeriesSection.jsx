@@ -7,8 +7,6 @@ import { getPopularSeries } from "../../../services/SeriesService";
 import Link from "next/link";
 import { LeftArrowSvg } from "@/assets/Svgs";
 
-
-
 const PopularSeriesSection = () => {
     const [series, setSeries] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -23,7 +21,6 @@ const PopularSeriesSection = () => {
         };
         getSeries();
     }, []);
-
 
     const handleNext = () => {
         if (scrollContainerRef.current) {
@@ -62,8 +59,18 @@ const PopularSeriesSection = () => {
                 {loading
                     ? Array.from({ length: 5 }).map((_, index) => <MovieCardSkeleton key={index} />) :
                     series?.length === 0 ? <span className="3xl:text-super-base xl:text-super-sm max-md:text-sm text-c-grey-60">Sorry, no series available yet. Please visit us again later.</span>
-                        : series?.map(({ _id, title, totalEpisodes, thumbnail, views, averageRating }) => (
-                            <MovieCard key={_id} id={_id} series title={title} image={thumbnail} episodes={totalEpisodes} view={views} rate={averageRating} />
+                        : series?.map((item) => (
+                            <MovieCard 
+                                key={item._id} 
+                                id={item._id} 
+                                series={true} // Assure que MovieCard traite l'élément comme une série
+                                title={item.title} 
+                                // Sécurité : teste thumbnail, poster_path et backdrop_path
+                                image={item.thumbnail || item.poster_path || item.backdrop_path || ""} 
+                                episodes={item.totalEpisodes} 
+                                view={item.views} 
+                                rate={item.averageRating} 
+                            />
                         ))}
             </div>
         </div>

@@ -11,9 +11,25 @@ const DownloadSection = ({ files, seriesTitle, moviePage, season, episode }) => 
                 Download Links
             </h4>
 
-            {files.map((file, index) => (
-                <DownloadItem key={index} moviePage quality={file.quality} size={'1.2 GB'} url={file.url} seriesTitle={seriesTitle} season={season} episode={episode} />
-            ))}
+            {/* Sécurité : utilisation de files?.map pour éviter le crash si files est indéfini */}
+            {files && files.length > 0 ? (
+                files.map((file, index) => (
+                    <DownloadItem 
+                        key={index} 
+                        moviePage 
+                        quality={file.quality} 
+                        size={file.size || '1.2 GB'} // Utilise la taille réelle du fichier si elle existe
+                        url={file.url} 
+                        seriesTitle={seriesTitle} 
+                        season={season} 
+                        episode={episode} 
+                    />
+                ))
+            ) : (
+                <p className="text-c-grey-60 text-sm italic">
+                    No download links available for this title yet.
+                </p>
+            )}
 
         </section>
     );

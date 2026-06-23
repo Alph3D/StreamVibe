@@ -4,6 +4,20 @@ import StarRating from "./common/StarRating";
 import Image from "next/image";
 
 const MovieCard = ({ id, special, series, image, title, view, duration, episodes, rate }) => {
+    // Fonction pour déterminer la bonne URL de l'image
+    const getImageUrl = (imagePath) => {
+        if (!imagePath || typeof imagePath !== 'string') {
+            return '/fallback-placeholder.png'; // Image par défaut si l'objet est corrompu ou [object Object]
+        }
+        // Si l'image est déjà une URL absolue (Unsplash, TMDB, etc.)
+        if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+            return imagePath;
+        }
+        // Sinon, c'est une image locale relative stockée sur ton backend Express
+        const baseUrl = process.env.NEXT_PUBLIC_IMAGE_URL || 'https://scaling-space-funicular-g4pvv76jq6g52vw7p-5000.app.github.dev';
+        return `${baseUrl}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+    };
+
     return (
         <div
             className={`bg-c-black-10 border border-c-black-15 rounded-xl flex-shrink-0 flex flex-col justify-between
@@ -14,8 +28,8 @@ const MovieCard = ({ id, special, series, image, title, view, duration, episodes
                     <Image
                         width={288}
                         height={432}
-                        src={`${process.env.NEXT_PUBLIC_IMAGE_URL}/${image}`}
-                        alt={title}
+                        src={getImageUrl(image)}
+                        alt={title || "Movie Poster"}
                         className="rounded-xl w-full aspect-thumbnail object-cover object-top"
                     />
                 </Link>

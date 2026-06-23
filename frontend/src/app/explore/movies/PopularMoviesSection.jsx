@@ -7,8 +7,6 @@ import { getPopularMovies } from "../../../services/MovieService";
 import Link from "next/link";
 import { LeftArrowSvg } from "@/assets/Svgs";
 
-
-
 const PopularMoviesSection = () => {
     const [movies, setMovies] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -23,7 +21,6 @@ const PopularMoviesSection = () => {
         };
         getMovies();
     }, []);
-
 
     const handleNext = () => {
         if (scrollContainerRef.current) {
@@ -62,8 +59,17 @@ const PopularMoviesSection = () => {
                 {loading
                     ? Array.from({ length: 5 }).map((_, index) => <MovieCardSkeleton key={index} />) :
                     movies?.length === 0 ? <span className="3xl:text-super-base xl:text-super-sm max-md:text-sm text-c-grey-60">Sorry, no movies available yet. Please visit us again later.</span>
-                        : movies?.map(({ _id, title, duration, thumbnail, views, averageRating }) => (
-                            <MovieCard key={_id} id={_id} title={title} image={thumbnail} duration={duration} view={views} rate={averageRating} />
+                        : movies?.map((movie) => (
+                            <MovieCard 
+                                key={movie._id} 
+                                id={movie._id} 
+                                title={movie.title} 
+                                // Sécurité : prend thumbnail, et si vide, teste poster_path ou backdrop_path
+                                image={movie.thumbnail || movie.poster_path || movie.backdrop_path || ""} 
+                                duration={movie.duration} 
+                                view={movie.views} 
+                                rate={movie.averageRating} 
+                            />
                         ))}
             </div>
         </div>
