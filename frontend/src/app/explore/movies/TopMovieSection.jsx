@@ -3,7 +3,7 @@ import MultipleCard from "@/components/MultipleCard";
 import SlidePagination from "@/components/SlidePagination";
 import { useEffect, useRef, useState } from "react";
 import MultipleCardSkeleton from "@/components/MultipleCardSkeleton";
-import { fetchTopRatedCategories } from "../../../services/MovieService";
+import { fetchTopRatedCategories, fetchMovieCategories, getPopularMovies } from "@/services/MovieService";
 
 const TopMovieSection = () => {
     const [categories, setCategories] = useState([]);

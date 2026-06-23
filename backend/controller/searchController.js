@@ -14,7 +14,6 @@ const searchController = async (req, res) => {
     try {
         console.log("🔍 Recherche active pour :", query);
 
-        // Exécution des recherches en parallèle
         const [movies, series, actors, directors] = await Promise.all([
             Movie.find({ title: { $regex: query, $options: 'i' } }).limit(limit),
             Series.find({ title: { $regex: query, $options: 'i' } }).limit(limit),
@@ -22,11 +21,16 @@ const searchController = async (req, res) => {
             Director.find({ fullName: { $regex: query, $options: 'i' } }).limit(limit)
         ]);
 
-        console.log(`✅ Résultats trouvés -> Films: ${movies.length}, Séries: ${series.length}, Acteurs: ${actors.length}, Réalisateurs: ${directors.length}`);
-
+        // Mapping des résultats pour assurer la compatibilité des images (poster -> thumbnail)
         const combinedResults = [
-            ...movies.map(m => ({ type: 'movie', data: m })),
-            ...series.map(s => ({ type: 'series', data: s })),
+            ...movies.map(m => ({ 
+                type: 'movie', 
+                data: { ...m.toObject(), thumbnail: m.thumbnail || m.poster } 
+            })),
+            ...series.map(s => ({ 
+                type: 'series', 
+                data: { ...s.toObject(), thumbnail: s.thumbnail || s.poster } 
+            })),
             ...actors.map(a => ({ type: 'actor', data: a })),
             ...directors.map(d => ({ type: 'director', data: d }))
         ];

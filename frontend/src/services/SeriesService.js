@@ -1,5 +1,6 @@
 // Correction de l'import : on utilise un chemin relatif direct vers api.js dans le même dossier
 import { API_BASE_URL } from "@/services/api";
+import { getTrendingSeries } from "@/services/SeriesService";
 
 export const fetchSeriesCategories = async () => {
     try {

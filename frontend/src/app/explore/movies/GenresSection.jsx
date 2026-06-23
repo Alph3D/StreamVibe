@@ -2,7 +2,7 @@
 import MultipleCard from "@/components/MultipleCard";
 import SlidePagination from "@/components/SlidePagination";
 import { useEffect, useRef, useState } from "react";
-import { fetchMovieCategories } from "../../../services/MovieService";
+import { fetchMovieCategories } from "@/services/MovieService";
 import MultipleCardSkeleton from "@/components/MultipleCardSkeleton";
 
 const GenresSection = () => {

@@ -122,9 +122,12 @@ const movieModel = mongoose.Schema({
         type: [String],
         required: false
     },
+    poster: {
+        type: String
+    },
     thumbnail: {
         type: String,
-        required: [true, 'Thumbnail is required']
+        required: false // Rends-le optionnel pour le moment
     },
     cover: {
         type: String,

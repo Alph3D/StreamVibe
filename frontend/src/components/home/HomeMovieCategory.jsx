@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import MultipleCardSkeleton from '../MultipleCardSkeleton';
 import MultipleCard from '../MultipleCard';
 import MovieCategoryTitle from './MovieCategoryTitle';
-import { fetchMovieCategories } from '../../services/MovieService';
+import { fetchMovieCategories } from "@/services/MovieService";
 
 
 const HomeMovieCategory = () => {

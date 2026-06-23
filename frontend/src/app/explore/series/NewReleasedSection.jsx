@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { getNewReleasedSeries } from "../../../services/SeriesService";
 import Link from "next/link";
 import { LeftArrowSvg } from "@/assets/Svgs";
+import { getNewReleasedMovies } from "@/services/MovieService";
 
 const NewReleasedSection = () => {
     // CORRECTION : Changement de SetSeries en setSeries (avec un s minuscule)
