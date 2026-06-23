@@ -12,15 +12,20 @@ dotEnv.config({ path: path.resolve(__dirname, 'config', 'config.env') });
 //! Connect to Database
 connectDb();
 
-//! cors options
+//! cors options - AJOUT de ton URL GitHub Codespaces
 const corsOptions = {
-    origin: ["http://localhost:3000", "https://streamvibe-live.liara.run"],
+    origin: [
+        "http://localhost:3000", 
+        "https://streamvibe-live.liara.run",
+        "https://scaling-space-funicular-g4pvv76jq6g52vw7p-3000.app.github.dev" // Ton frontend actuel
+    ],
     credentials: true,
 };
 
 const app = express()
     .use(express.json())
-    .use(cors(corsOptions))
+    // Si tu veux être 100% tranquille sur Codespaces, tu peux remplacer cors(corsOptions) par cors() tout court pendant le dev
+    .use(cors(corsOptions)) 
     .use(express.urlencoded({ extended: true }))
     .use(cookieParser());
 
