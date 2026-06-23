@@ -12,23 +12,25 @@ dotEnv.config({ path: path.resolve(__dirname, 'config', 'config.env') });
 //! Connect to Database
 connectDb();
 
-//! cors options - AJOUT de ton URL GitHub Codespaces
-const corsOptions = {
-    origin: [
-        "http://localhost:3000", 
-        "https://streamvibe-live.liara.run",
-        "https://scaling-space-funicular-g4pvv76jq6g52vw7p-3000.app.github.dev" // Ton frontend actuel
-    ],
+const app = express();
+
+//! cors options - Configuration dynamique et robuste pour le développement et la production
+app.use(cors({
+    origin: function (origin, callback) {
+        // Autorise la requête si elle n'a pas d'origine (comme les outils Postman, mobile ou SSR)
+        // ou si elle provient de n'importe quel domaine de dev ou prod
+        if (!origin) return callback(null, true);
+        return callback(null, true);
+    },
     credentials: true,
-};
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Cookie"]
+}));
 
-const app = express()
-    .use(express.json())
-    // Si tu veux être 100% tranquille sur Codespaces, tu peux remplacer cors(corsOptions) par cors() tout court pendant le dev
-    .use(cors(corsOptions)) 
-    .use(express.urlencoded({ extended: true }))
-    .use(cookieParser());
-
+//! Middlewares standard
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 //! Static Folder
 app.use("/public", express.static(path.join(__dirname, "public", "actor")));
@@ -51,7 +53,6 @@ app.use('/api/episode', require('./router/episodeRoutes'));
 app.use("/api/support", require('./router/supportRoutes'));
 app.use("/api/like", require('./router/likeRoutes'));
 app.use("/api/search", require('./router/searchRoutes'));
-
 
 app.listen(process.env.PORT || 5000, err => {
     if (err) return console.log(err);
