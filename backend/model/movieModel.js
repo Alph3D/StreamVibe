@@ -166,7 +166,7 @@ const movieModel = mongoose.Schema({
     },
 })
 
-module.exports = mongoose.model('Movies', movieModel);
+module.exports = mongoose.model('Movie', movieModel, 'movies');
 
 
 

@@ -158,4 +158,4 @@ const seriesModel = mongoose.Schema({
     },
 });
 
-module.exports = mongoose.model('Series', seriesModel);
+module.exports = mongoose.model('Series', seriesModel, 'series');

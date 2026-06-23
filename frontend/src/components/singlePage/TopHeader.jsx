@@ -1,12 +1,26 @@
+"use client";
+
 import HeaderCallToAction from "../singlePage/HeaderCallToAction";
 
+// On ajoute thumbnail dans les props récupérées
+export default function TopHeader({ id, title, description, cover, thumbnail }) {
+    
+    // Fonction mise à jour pour utiliser la propriété disponible (cover ou thumbnail)
+    const getBannerUrl = () => {
+        const src = cover || thumbnail;
 
-const TopHeader = ({ id, title, description, cover }) => {
+        if (!src) return "/placeholder-banner.png";
+        if (src.startsWith('http://') || src.startsWith('https://')) {
+            return src;
+        }
+        return `${process.env.NEXT_PUBLIC_IMAGE_URL}/${src}`;
+    };
+
     return (
         <div className="relative w-full xl:h-[80vh] md:h-[60vh] h-[50vh] overflow-hidden rounded-xl">
             <img
-                src={`${process.env.NEXT_PUBLIC_IMAGE_URL}/${cover}`}
-                alt={`${title} series`}
+                src={getBannerUrl()} // Appel de la fonction sans lui passer de paramètre fixe
+                alt={`${title} banner`}
                 className="w-full h-full object-cover"
                 style={{ objectPosition: "center 60%" }}
             />
@@ -23,9 +37,6 @@ const TopHeader = ({ id, title, description, cover }) => {
                 </p>
                 <HeaderCallToAction mediaId={id} />
             </div>
-
         </div>
     );
 }
-
-export default TopHeader;

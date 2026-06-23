@@ -1,12 +1,18 @@
 import { HalfStarIcon, OutlineStarIcon, StarIcon } from "@/assets/Svgs";
 
 const StarRating = ({ special, rating }) => {
-    const filledStars = Array(Math.floor(rating)).fill('filled');
-    const halfStar = rating % 1 !== 0 ? ['half'] : [];
-    const emptyStars = Array(5 - Math.floor(rating) - halfStar.length).fill('empty');
-
+    // 1. On sécurise la note immédiatement en premier
     const safeRating = rating == null || isNaN(rating) ? 0 : parseFloat(rating);
     const formattedRating = Number.isInteger(safeRating) ? safeRating : parseFloat(safeRating.toFixed(1));
+
+    // 2. On utilise safeRating (qui est obligatoirement un nombre valide) pour les tableaux
+    const floorRating = Math.floor(safeRating);
+    const filledStars = Array(Math.max(0, floorRating)).fill('filled');
+    const halfStar = safeRating % 1 !== 0 ? ['half'] : [];
+    
+    // Sécurité pour s'assurer que la taille totale du tableau ne dépasse pas 5 ou ne tombe pas sous 0
+    const emptyStarsCount = Math.max(0, 5 - floorRating - halfStar.length);
+    const emptyStars = Array(emptyStarsCount).fill('empty');
 
     return (
         <div className="flex items-center 3xl:gap-1 gap-0.5">

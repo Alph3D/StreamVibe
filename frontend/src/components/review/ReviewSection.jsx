@@ -50,13 +50,14 @@ const ReviewSection = ({ id }) => {
 
                 {loading ? (
                     Array.from({ length: 3 }).map((_, index) => <ReviewItemSkeleton key={index} />)
-                ) : previews?.length === 0 ? (
+                ) : !previews || previews.length === 0 ? ( // Sécurité renforcée ici
                     <p className="text-white 2xl:text-base xl:text-super-sm md:text-sm text-super-xs">
                         No reviews posted yet. Your feedback helps!
                     </p>
                 ) :
                     (
-                        previews.map(({ fullName, rating, text }, index) => (
+                        // Utilisation du point d'interrogation (?) de sécurité avant le map
+                        previews?.map(({ fullName, rating, text }, index) => (
                             <ReviewItem
                                 key={index}
                                 fullName={fullName}

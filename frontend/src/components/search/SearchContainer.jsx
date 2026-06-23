@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import { useState } from "react";
 import SearchOverlay from "./SearchOverlay";
 import SearchActorItem from "./SearchActorItem";
@@ -12,28 +12,40 @@ const SearchContainer = ({ isOpen, setIsOpen }) => {
     const [query, setQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
 
-    const handleSearch = async (query) => {
-        if (!query.trim()) return;
+    const handleSearch = async (searchQuery) => {
+        const cleanQuery = searchQuery?.trim();
+        if (!cleanQuery) return;
 
         setLoading(true);
+        console.log("🔍 Recherche lancée pour :", cleanQuery);
+
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/search/`, {
+            // Nettoyage automatique des slashs pour éviter les URL brisées
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+            const response = await fetch(`${baseUrl}/search`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({
-                    query: query.trim(),
-                }),
+                body: JSON.stringify({ query: cleanQuery }),
             });
-            const data = await res.json();
-            console.log(data);
-            setSearchResults(data.results);
+
+            if (!response.ok) {
+                throw new Error(`Erreur HTTP ! Statut: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("📦 Données reçues du serveur :", data);
+
+            // Sécurité : On s'adapte à la structure renvoyée par ton API (data.results OU data directement)
+            const results = data.results || (Array.isArray(data) ? data : []);
+            setSearchResults(results);
+            
             setLoading(false);
             return data;
         } catch (error) {
             setLoading(false);
-            console.log(error);
+            console.error("❌ Erreur lors de la recherche :", error);
         };
     };
 
@@ -41,7 +53,7 @@ const SearchContainer = ({ isOpen, setIsOpen }) => {
         setIsOpen(false);
         setQuery("");
         setSearchResults([]);
-    }
+    };
 
     return (
         <SearchOverlay show={show} setShow={setShow} isOpen={isOpen}>
@@ -54,12 +66,20 @@ const SearchContainer = ({ isOpen, setIsOpen }) => {
                     Array.from({ length: 6 }).map((_, index) => (
                         <SearchMovieItemSkeleton key={index} />
                     ))
+                ) : !searchResults || searchResults.length === 0 ? (
+                    query.trim() && !loading && (
+                        <p className="text-c-grey-60 text-center py-4">Aucun résultat trouvé pour "{query}"</p>
+                    )
                 ) : (
-                    searchResults?.map((item) => {
-                        if (item.type === 'movie' || item.type === 'series') {
-                            return <SearchMovieItem key={item._id} type={item.type} data={item.data} handleClose={handleClose} />;
-                        } else if (item.type === 'actor' || item.type === 'director') {
-                            return <SearchActorItem key={item._id} type={item.type} data={item.data} handleClose={handleClose} />;
+                    searchResults.map((item) => {
+                        // Sécurité si ton backend renvoie l'item directement sans structure item.type/item.data
+                        const type = item.type || (item.category ? 'movie' : 'actor');
+                        const itemData = item.data || item;
+
+                        if (type === 'movie' || type === 'series') {
+                            return <SearchMovieItem key={item._id} type={type} data={itemData} handleClose={handleClose} />;
+                        } else if (type === 'actor' || type === 'director') {
+                            return <SearchActorItem key={item._id} type={type} data={itemData} handleClose={handleClose} />;
                         }
                         return null;
                     })
