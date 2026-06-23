@@ -7,26 +7,30 @@ import { getNewReleasedSeries } from "../../../services/SeriesService";
 import Link from "next/link";
 import { LeftArrowSvg } from "@/assets/Svgs";
 
-
-
 const NewReleasedSection = () => {
-    const [series, SetSeries] = useState([]);
+    // CORRECTION : Changement de SetSeries en setSeries (avec un s minuscule)
+    const [series, setSeries] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
     const scrollContainerRef = useRef(null);
 
     useEffect(() => {
         const getSeries = async () => {
-            const response = await getNewReleasedSeries();
-            const nextSeries = Array.isArray(response)
-                ? response
-                : response?.series;
-            setSeries(Array.isArray(nextSeries) ? nextSeries : []);
-            setLoading(false);
+            try {
+                const response = await getNewReleasedSeries();
+                const nextSeries = Array.isArray(response)
+                    ? response
+                    : response?.series;
+                setSeries(Array.isArray(nextSeries) ? nextSeries : []);
+            } catch (error) {
+                console.error("Error inside getSeries component:", error);
+                setSeries([]);
+            } finally {
+                setLoading(false);
+            }
         };
         getSeries();
     }, []);
-
 
     const handleNext = () => {
         if (scrollContainerRef.current) {
