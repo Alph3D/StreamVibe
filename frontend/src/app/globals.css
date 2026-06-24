@@ -62,3 +62,29 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #4d4d4d;
 }
+/* styles/globals.css ou app/globals.css */
+
+/* Personnalisation de la scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: #1f2937; /* gray-800 */
+    border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #2563eb; /* blue-600 */
+    border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #1d4ed8; /* blue-700 */
+}
+
+/* Pour Firefox */
+.scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #2563eb #1f2937;
+}

@@ -38,11 +38,13 @@ exports.singleMovie = async (req, res) => {
     try {
         // Si l'ID est numérique, il vient de TMDB
         if (!isNaN(movieId)) {
-            const response = await axios.get(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}&language=fr-FR`);
+            const response = await axios.get(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${process.env.TMDB_API_KEY}&language=fr-FR&append_to_response=external_ids`);
             const movieData = response.data;
 
             const formattedMovie = {
                 _id: movieData.id.toString(),
+                tmdbId: movieData.id.toString(),
+                imdb_id: movieData.external_ids ? movieData.external_ids.imdb_id : null,
                 title: movieData.title,
                 description: movieData.overview,
                 thumbnail: movieData.poster_path ? `${TMDB_IMAGE_BASE}${movieData.poster_path}` : "https://via.placeholder.com/500x750?text=No+Image",

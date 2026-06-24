@@ -5,10 +5,9 @@ const MovieItemInfo = ({ type, id, title, rate, description, genres, handleClose
     return (
         <div className="w-full">
             <div className="flex items-center justify-between mb-5">
-                <Link href={`/${type === "movie" ? "movies" : "series"}/${id}`}>
+                <Link href={`/${type === "movie" ? "movies" : "series"}/${id}`} onClick={handleClose}>
                     <h6
                         className="capitalize text-xl font-medium text-white/95"
-                        onClick={handleClose}
                     >
                         {title}
                     </h6>

@@ -27,10 +27,9 @@ const SearchMovieItem = ({ type, data, handleClose }) => {
                     handleClose={handleClose} 
                 />
 
-                <Link href={`/${type === "movie" ? "movies" : "series"}/${id}`}>
+                <Link href={`/${type === "movie" ? "movies" : "series"}/${id}${type === "movie" ? "" : "/watch"}`} onClick={handleClose}>
                     <button 
                         className="bg-c-red-45 text-white text-sm font-medium px-11 py-2 rounded-lg" 
-                        onClick={handleClose}
                     >
                         Watch Now
                     </button>

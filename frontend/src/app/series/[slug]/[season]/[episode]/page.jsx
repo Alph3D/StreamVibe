@@ -29,11 +29,13 @@ const SingleEpisodePage = async ({ params }) => {
 
                     <section className="bg-c-black-10 border border-c-black-15 xl:py-9 xl:px-9 md:px-5 md:py-5 px-3.5 py-3.5 rounded-2.5xl">
                         <div className="aspect-video rounded-[0.9rem] overflow-hidden">
-                            <video
-                                src="/images/short-video.mp4"
-                                poster={`${process.env.NEXT_PUBLIC_IMAGE_URL}/${pictures[0]}`}
-                                className="w-full"
-                                controls
+                            <StreamingSection 
+                                isSeries={true}
+                                tmdbId={series.tmdb_id} // Assurez-vous que cet ID existe dans votre objet 'series'
+                                imdbId={series.imdb_id} // Ou series.imdb_id selon la structure de votre API
+                                season={season}
+                                episode={episode}
+                                title={seriesTitle}
                             />
                         </div>
                         <div className="mt-6">

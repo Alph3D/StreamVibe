@@ -14,9 +14,10 @@ const Navbar = () => {
     const user = useUserStore((state) => state.user);
     const loading = useUserStore((state) => state.loading);
     const pathname = usePathname();
+    const currentPath = pathname || "/";
 
     return (
-        <header className={`py-5 ${pathname === "/" && "absolute"} top-0 right-0 z-30 w-full ${pathname == "/register" && "hidden"}`}>
+        <header className={`py-5 ${currentPath === "/" && "absolute"} top-0 right-0 z-30 w-full ${currentPath == "/register" && "hidden"}`}>
             <div
                 className="fixed w-full h-[5px] top-0 right-0 z-20
           3xl:bg-slate-500 2xl:bg-amber-400 xl:bg-stone-600 lg:bg-red-800 md:bg-orange-500 sm:bg-violet-500 bg-teal-400
@@ -26,7 +27,7 @@ const Navbar = () => {
                     <img src="/images/logo-white.png" alt="StreamVibe" className="3xl:w-full lg:w-[165px] w-[150px]" />
                 </Link>
 
-                <NavbarNav pathname={pathname} />
+                <NavbarNav pathname={currentPath} />
 
                 <div className="flex items-center gap-4">
                     <SearchBox />
