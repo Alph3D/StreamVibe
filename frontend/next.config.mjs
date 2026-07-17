@@ -3,8 +3,11 @@ const nextConfig = {
     experimental: {
         missingSuspenseWithCSRBailout: false,
     },
+    // 🔥 Variables d'environnement exposées au serveur Next.js
+    env: {
+        TMDB_API_KEY: process.env.TMDB_API_KEY,
+    },
     images: {
-        //remotePatterns indique à Next.js quelles URLs externes sont autorisées
         remotePatterns: [
             {
                 protocol: 'https',
@@ -13,17 +16,17 @@ const nextConfig = {
             },
             {
                 protocol: 'https',
-                hostname: 'image.tmdb.org', // <-- C'est cette ligne qui débloque les images TMDB
+                hostname: 'image.tmdb.org',
                 pathname: '/**',
             },
             {
                 protocol: 'https',
-                hostname: 'scaling-space-funicular-g4pvv76jq6g52vw7p-5000.app.github.dev', // Ton backend Codespaces
+                hostname: 'scaling-space-funicular-g4pvv76jq6g52vw7p-5000.app.github.dev',
                 pathname: '/**',
             },
             {
                 protocol: 'https',
-                hostname: 'streamvibe-backend.liara.run', // Ton backend en production
+                hostname: 'streamvibe-backend.liara.run',
                 pathname: '/**',
             }
         ],

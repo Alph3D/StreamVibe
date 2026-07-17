@@ -123,17 +123,24 @@ export const getPopularSeries = async (page = 1) => {
     }
 };
 
-export const fetchSingleSeries = async (id) => {
+// frontend/services/SeriesService.js
+export const fetchSingleSeries = async (slug) => {
     try {
-        const res = await fetch(`${API_BASE_URL}/series/single/${id}`, { cache: 'no-store' });
-        if (!res.ok) {
-            const fallback = await fetch(`${API_BASE_URL}/series/${id}`, { cache: 'no-store' });
-            if (!fallback.ok) return null;
-            return await fallback.json();
+        const response = await fetch(`${API_BASE_URL}/series/single/${slug}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return await handleResponse(res);
+        const data = await response.json();
+        
+        // 🔥 S'assurer que l'ID est bien présent
+        const series = data?.series || data;
+        if (series) {
+            console.log(`📊 Série trouvée: ${series.title} (ID: ${series._id || series.id})`);
+        }
+        
+        return data;
     } catch (error) {
-        console.error('Error fetching single series:', error);
+        console.error('❌ Error fetching single series:', error);
         return null;
     }
 };

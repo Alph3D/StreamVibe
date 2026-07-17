@@ -1,117 +1,85 @@
+// backend/model/seriesModel.js
 const mongoose = require('mongoose');
 
 const seriesModel = mongoose.Schema({
+    // 🔥 _id ajouté pour les IDs TMDB
+    _id: { 
+        type: String, 
+        required: true 
+    },
     title: {
         type: String,
         required: [true, 'Title is required'],
     },
+    // 🔥 Director rendu optionnel pour TMDB
     director: {
         type: mongoose.Schema.Types.ObjectId,
-        required: [true, 'Director is required'],
-        ref: "Directors"
+        ref: "Directors",
+        default: null
     },
     description: {
         type: String,
         default: "",
-        require: false
     },
+    // 🔥 release_date rendu optionnel
     release_date: {
         type: String,
-        required: [true, 'Release Date is required'],
+        default: ""
     },
     seasons: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Seasons'
     }],
+    // 🔥 genres rendu plus flexible
     genres: {
         type: [String],
-        enum: [
-            'action',
-            'comedy',
-            'drama',
-            'horror',
-            'science fiction',
-            'fantasy',
-            'romance',
-            'thriller',
-            'mystery',
-            'documentary',
-            'adventure',
-            'crime',
-            'musical',
-            'western',
-            'animation',
-            'war'
-        ],
-        required: [true, 'Genres is required'],
+        default: ['Général']
     },
     category: {
         type: [String],
-        enum: [
-            'action',
-            'comedy',
-            'drama',
-            'horror',
-            'science fiction',
-            'fantasy',
-            'romance',
-            'thriller',
-            'mystery',
-            'documentary',
-            'adventure',
-            'crime',
-            'musical',
-            'western',
-            'animation',
-            'war'
-        ],
-        required: [true, 'Category is required']
+        default: ['Général']
     },
     country: {
         type: String,
-        required: [true, 'Country is required']
+        default: 'France'
     },
     language: {
         type: String,
-        required: [true, 'Language is required']
+        default: 'fr'
     },
-    //! Must change
+    // 🔥 Champs optionnels pour TMDB
     production_company: {
         type: String,
-        default: null
-        // required: [true, 'Production Company is required']
+        default: ''
     },
     age_rating: {
         type: String,
-        default: null
-        // required: [true, 'Age Rating is required']
+        default: 'Tous publics'
     },
     rotten_rating: {
         type: Number,
-        required: [true, 'Rotten Rating is required']
+        default: 0
     },
     imdb_rating: {
         type: Number,
-        required: [true, 'IMDB Rating is required']
+        default: 0
     },
     awards: [{
         name: {
             type: String,
-            required: true
+            required: false
         },
         year: {
             type: Number,
-            required: true
+            required: false
         }
     }],
     boxOffice: {
         budget: {
             type: Number,
-            // required: true
         },
         gross: {
             type: Number,
-            // required: true
         }
     },
     top250rank: {
@@ -122,24 +90,24 @@ const seriesModel = mongoose.Schema({
     },
     pictures: {
         type: [String],
-        required: false
+        required: false,
+        default: []
     },
     thumbnail: {
         type: String,
-        required: [true, 'Thumbnail is required']
+        default: ''
     },
     cover: {
         type: String,
-        required: [true, 'Cover is required!']
+        default: ''
     },
     trailer: {
         type: String,
-        required: [true, 'Trailer is required']
+        default: ''
     },
     release_status: {
         type: String,
         enum: ['now showing', 'coming soon', 'expired'],
-        // required: [true, 'Release Status is required']
         default: 'now showing'
     },
     publish_date: {
@@ -153,9 +121,44 @@ const seriesModel = mongoose.Schema({
     actors: {
         type: [mongoose.Schema.Types.ObjectId],
         default: [],
-        required: false,
         ref: "Actors"
     },
+    // 🔥 Nouveaux champs pour TMDB
+    original_language: {
+        type: String,
+        default: 'en'
+    },
+    original_title: {
+        type: String,
+        default: ''
+    },
+    poster_path: {
+        type: String,
+        default: ''
+    },
+    backdrop_path: {
+        type: String,
+        default: ''
+    },
+    vote_average: {
+        type: Number,
+        default: 0
+    },
+    vote_count: {
+        type: Number,
+        default: 0
+    },
+    popularity: {
+        type: Number,
+        default: 0
+    },
+    first_air_date: {
+        type: String,
+        default: ''
+    }
+}, {
+    collection: 'series',
+    timestamps: true
 });
 
-module.exports = mongoose.model('Series', seriesModel, 'series');
+module.exports = mongoose.model('Series', seriesModel);

@@ -1,94 +1,78 @@
-import { Suspense } from "react";
+// frontend/app/series/[slug]/[season]/[episode]/page.jsx
+import { fetchSingleSeries, fetchSingleEpisode } from "@/services/SeriesService";
+import { notFound } from 'next/navigation';
 
-import ReviewSection from "@/components/review/ReviewSection";
-import CastSection from "@/components/singlePage/CastSection";
-import Director from "@/components/singlePage/Director";
-import Genres from "@/components/singlePage/Genres";
-import Musician from "@/components/singlePage/Musician";
-import Rating from "@/components/singlePage/Rating";
-import ReleasedMovie from "@/components/singlePage/ReleasedMovie";
-import DownloadSection from "../../../../../components/singlePage/DownloadSection";
-import EpisodePageSkeleton from "./EpisodePageSkeleton";
-import { fetchSingleEpisode } from "@/services/SeriesService";
+export default async function SingleEpisodePage({ params }) {
+    const resolvedParams = await params;
+    const slug = resolvedParams.slug;
+    const season = resolvedParams.season;
+    const episode = resolvedParams.episode;
 
+    // 🔥 SÉCURITÉ : Bloquer les fichiers d'images et icônes
+    // Empêche Next.js de traiter les favicons et images comme des épisodes
+    if (
+        !slug || 
+        slug === 'undefined' || 
+        slug === 'null' ||
+        season === 'images' || 
+        season === 'assets' ||
+        season === 'public' ||
+        episode.includes('.png') || 
+        episode.includes('.ico') || 
+        episode.includes('.jpg') || 
+        episode.includes('.jpeg') || 
+        episode.includes('.svg') || 
+        episode.includes('.webp') ||
+        episode.includes('.json')
+    ) {
+        console.log(`⛔ Requête invalide ignorée - Slug: ${slug}, Season: ${season}, Episode: ${episode}`);
+        return null; // Retourner null pour ignorer la requête
+    }
 
-const SingleEpisodePage = async ({ params }) => {
-    const { slug: seriesId, season, episode } = params;
-    const seriesData = await fetchSingleEpisode(seriesId, season, episode);
+    // 🔥 Vérifier que season et episode sont des nombres
+    const seasonNum = parseInt(season);
+    const episodeNum = parseInt(episode);
+    
+    if (isNaN(seasonNum) || isNaN(episodeNum) || seasonNum < 1 || episodeNum < 1) {
+        console.log(`⛔ Saison/Épisode invalide - Season: ${season}, Episode: ${episode}`);
+        notFound();
+    }
 
-    if (!seriesData) return <EpisodePageSkeleton />;
+    console.log(`📺 Slug: ${slug}, Season: ${seasonNum}, Episode: ${episodeNum}`);
 
-    const { title, series, pictures, files } = seriesData;
-    const { title: seriesTitle, director, release_date, genres, rotten_rating, imdb_rating, actors } = series;
+    // 🔥 1. Récupérer la série pour obtenir l'ID numérique
+    const seriesData = await fetchSingleSeries(slug);
+    const series = seriesData?.series || seriesData;
 
+    if (!series) {
+        console.log('❌ Série non trouvée:', slug);
+        notFound();
+    }
 
-    return (
-        <Suspense fallback={<EpisodePageSkeleton />}>
-            <main className="container md:pt-10 pt-5 md:pb-20 pb-10">
-                <div className="lg:w-[85%] mx-auto space-y-6">
+    // 🔥 2. Extraire l'ID numérique (TMDB ID)
+    const seriesId = series.tmdbId || series._id || series.id;
+    console.log(`🎬 Series ID: ${seriesId}`);
 
-                    <section className="bg-c-black-10 border border-c-black-15 xl:py-9 xl:px-9 md:px-5 md:py-5 px-3.5 py-3.5 rounded-2.5xl">
-                        <div className="aspect-video rounded-[0.9rem] overflow-hidden">
-                            <StreamingSection 
-                                isSeries={true}
-                                tmdbId={series.tmdb_id} // Assurez-vous que cet ID existe dans votre objet 'series'
-                                imdbId={series.imdb_id} // Ou series.imdb_id selon la structure de votre API
-                                season={season}
-                                episode={episode}
-                                title={seriesTitle}
-                            />
-                        </div>
-                        <div className="mt-6">
-                            <h1 className="xl:text-3xl md:text-2xl text-lg font-semibold text-white capitalize">
-                                {seriesTitle} - Episode {episode}
-                            </h1>
-                            <p className="mt-2 xl:text-lg md:text-super-base text-sm font-medium text-c-grey-70">
-                                Season {season} - Episode {episode}
-                            </p>
-                            <p className="mt-3 text-c-grey-65 xl:text-lg md:text-super-base text-super-xs tracking-wide">
-                                {title}
-                            </p>
-                        </div>
-                    </section>
+    if (!seriesId) {
+        console.log('❌ ID de série invalide');
+        notFound();
+    }
 
-                    <section className="bg-c-black-10 border border-c-black-15 xl:py-7 xl:px-7 md:px-5 md:py-5 px-3.5 py-3.5 rounded-2.5xl">
+    // 🔥 3. Récupérer l'épisode avec l'ID numérique
+    let episodeData;
+    try {
+        episodeData = await fetchSingleEpisode(seriesId, seasonNum, episodeNum);
+    } catch (error) {
+        console.error('❌ Erreur fetchSingleEpisode:', error);
+        episodeData = null;
+    }
 
-                        <h4
-                            className="text-white md:text-xl text-super-base font-medium lg:mb-8 md:mb-5 mb-3.5"
-                        >
-                            Series Info
-                        </h4>
+    if (!episodeData) {
+        console.log('❌ Épisode non trouvé:', seasonNum, episodeNum);
+        notFound();
+    }
 
-                        <Rating custom ratings={[{ source: 'IMDb', score: imdb_rating }, { source: 'Rotten Tomatoes', score: rotten_rating }]} />
-
-                        <div className="grid md:grid-cols-2 md:gap-10 gap-6 mt-8">
-
-                            <Genres custom genres={genres} />
-
-                            <ReleasedMovie custom year={release_date} />
-
-                        </div>
-
-                        <div className="grid md:grid-cols-2 md:gap-10 gap-6 mt-8">
-
-                            <Director custom director={director} />
-
-                            <Musician custom musician={{ name: 'Kyle Dixon', country: 'USA', image: '/images/musician.jpg' }} />
-
-                        </div>
-
-                    </section>
-
-                    <CastSection actors={actors} />
-
-                    <DownloadSection files={files} seriesTitle={seriesTitle} season={season} episode={episode} />
-
-                    <ReviewSection id={seriesId} />
-
-                </div>
-            </main>
-        </Suspense>
-    );
+    // 🔥 4. Rediriger vers la page watch avec les bons paramètres
+    const { redirect } = await import('next/navigation');
+    redirect(`/series/${slug}/watch?season=${seasonNum}&episode=${episodeNum}`);
 }
-
-export default SingleEpisodePage;

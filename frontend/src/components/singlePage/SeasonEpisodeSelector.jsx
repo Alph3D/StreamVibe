@@ -18,74 +18,57 @@ const SeasonEpisodeSelector = ({
     const [isEpisodeDropdownOpen, setIsEpisodeDropdownOpen] = useState(false);
     const [seasonEpisodes, setSeasonEpisodes] = useState([]);
 
-    console.log("📊 Seasons reçues:", seasons);
-    console.log("📊 Nombre de saisons:", seasons?.length);
+    // 🔥 S'assurer que les saisons sont correctement formatées
+    const normalizedSeasons = seasons.map(season => ({
+        season_number: season.season_number || season.number || season.id || 1,
+        episode_count: season.episode_count || season.episodes?.length || 20,
+        episodes: season.episodes || []
+    }));
 
-    // Trouver la saison sélectionnée et ses épisodes
+    // 🔥 Trouver la saison sélectionnée
     useEffect(() => {
-        if (!seasons || seasons.length === 0) {
-            // Si pas de saisons, générer des données par défaut
-            const defaultSeasons = [
-                { season_number: 1, episode_count: 20 },
-                { season_number: 2, episode_count: 20 },
-                { season_number: 3, episode_count: 20 },
-            ];
-            const season = defaultSeasons.find(s => s.season_number === selectedSeason);
-            if (season) {
-                setSeasonEpisodes(
-                    Array.from({ length: season.episode_count || 20 }, (_, i) => ({
-                        episode_number: i + 1,
-                        title: `Épisode ${i + 1}`,
-                    }))
-                );
-            }
+        if (normalizedSeasons.length === 0) {
+            // Données par défaut si aucune saison
+            const defaultEpisodes = Array.from({ length: 20 }, (_, i) => ({
+                episode_number: i + 1,
+                title: `Épisode ${i + 1}`,
+            }));
+            setSeasonEpisodes(defaultEpisodes);
             return;
         }
 
-        // Trouver la saison dans les données
-        const season = seasons.find(s => {
-            const seasonNum = s.season_number || s.number || s.id;
-            return seasonNum === selectedSeason;
-        });
-        
-        console.log("📊 Saison trouvée:", season);
+        const season = normalizedSeasons.find(s => s.season_number === selectedSeason);
         
         if (season) {
-            // Si la saison a des épisodes
             if (season.episodes && season.episodes.length > 0) {
-                console.log("📊 Épisodes trouvés:", season.episodes);
                 setSeasonEpisodes(season.episodes);
             } else {
-                // Sinon, générer avec le nombre d'épisodes
-                const episodeCount = season.episode_count || season.episodeCount || 20;
-                console.log(`📊 Génération de ${episodeCount} épisodes par défaut`);
+                const count = season.episode_count || 20;
                 setSeasonEpisodes(
-                    Array.from({ length: episodeCount }, (_, i) => ({
+                    Array.from({ length: count }, (_, i) => ({
                         episode_number: i + 1,
                         title: `Épisode ${i + 1}`,
                     }))
                 );
             }
         } else {
-            // Si la saison n'est pas trouvée, utiliser la première saison
-            const firstSeason = seasons[0];
+            // Si la saison n'existe pas, prendre la première
+            const firstSeason = normalizedSeasons[0];
             if (firstSeason) {
-                const seasonNum = firstSeason.season_number || firstSeason.number || 1;
-                setSelectedSeason(seasonNum);
-                const episodeCount = firstSeason.episode_count || firstSeason.episodeCount || 20;
+                setSelectedSeason(firstSeason.season_number);
+                const count = firstSeason.episode_count || 20;
                 setSeasonEpisodes(
-                    Array.from({ length: episodeCount }, (_, i) => ({
+                    Array.from({ length: count }, (_, i) => ({
                         episode_number: i + 1,
                         title: `Épisode ${i + 1}`,
                     }))
                 );
             }
         }
-    }, [selectedSeason, seasons]);
+    }, [selectedSeason, normalizedSeasons]);
 
-    // Gestion du changement de saison
+    // 🔥 Gestion du changement de saison
     const handleSeasonSelect = (seasonNumber) => {
-        console.log(`📺 Changement de saison: ${seasonNumber}`);
         setSelectedSeason(seasonNumber);
         setSelectedEpisode(1);
         setIsSeasonDropdownOpen(false);
@@ -94,9 +77,8 @@ const SeasonEpisodeSelector = ({
         if (onEpisodeChange) onEpisodeChange(1);
     };
 
-    // Gestion du changement d'épisode
+    // 🔥 Gestion du changement d'épisode
     const handleEpisodeSelect = (episodeNumber) => {
-        console.log(`📺 Changement d'épisode: ${episodeNumber}`);
         setSelectedEpisode(episodeNumber);
         setIsEpisodeDropdownOpen(false);
         
@@ -115,23 +97,24 @@ const SeasonEpisodeSelector = ({
         return () => document.removeEventListener('click', handleClickOutside);
     }, []);
 
-    // Trouver le titre de l'épisode sélectionné
-    const currentEpisodeTitle = seasonEpisodes.find(
-        ep => ep.episode_number === selectedEpisode
-    )?.title || `Épisode ${selectedEpisode}`;
-
-    // Récupérer la liste des saisons (avec fallback)
-    const seasonsList = seasons && seasons.length > 0 ? seasons : [
-        { season_number: 1, episode_count: 20 },
-        { season_number: 2, episode_count: 20 },
-        { season_number: 3, episode_count: 20 },
-    ];
+    // 🔥 Si pas de saisons, afficher un message
+    if (normalizedSeasons.length === 0) {
+        return (
+            <div className="season-episode-selector w-full">
+                <div className="flex flex-wrap gap-3">
+                    <div className="flex-1 min-w-[150px] px-4 py-2.5 bg-gray-800/30 rounded-lg border border-gray-700/30 text-gray-500 text-sm text-center">
+                        Aucune saison disponible
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="season-episode-selector w-full space-y-3">
             <div className="flex flex-wrap gap-3">
                 
-                {/* Sélecteur de SAISON */}
+                {/* 🔥 Sélecteur de SAISON */}
                 <div className="relative flex-1 min-w-[150px]">
                     <button
                         onClick={() => {
@@ -168,39 +151,33 @@ const SeasonEpisodeSelector = ({
                                       max-h-60 overflow-y-auto
                                       scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
                             <div className="p-1">
-                                {seasonsList.map((season) => {
-                                    const seasonNum = season.season_number || season.number || season.id;
-                                    const episodeCount = season.episode_count || season.episodeCount || 
-                                                       season.episodes?.length || 20;
-                                    
-                                    return (
-                                        <button
-                                            key={seasonNum}
-                                            onClick={() => handleSeasonSelect(seasonNum)}
-                                            className={`w-full px-3 py-2.5 text-left text-sm rounded-lg
-                                                      transition-all duration-150
-                                                      ${selectedSeason === seasonNum
-                                                          ? 'bg-red-600/20 text-red-400 border border-red-500/30'
-                                                          : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
-                                                      }`}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-medium">
-                                                    Saison {seasonNum}
-                                                </span>
-                                                <span className="text-xs text-gray-500">
-                                                    {episodeCount} épisodes
-                                                </span>
-                                            </div>
-                                        </button>
-                                    );
-                                })}
+                                {normalizedSeasons.map((season) => (
+                                    <button
+                                        key={season.season_number}
+                                        onClick={() => handleSeasonSelect(season.season_number)}
+                                        className={`w-full px-3 py-2.5 text-left text-sm rounded-lg
+                                                  transition-all duration-150
+                                                  ${selectedSeason === season.season_number
+                                                      ? 'bg-red-600/20 text-red-400 border border-red-500/30'
+                                                      : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
+                                                  }`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-medium">
+                                                Saison {season.season_number}
+                                            </span>
+                                            <span className="text-xs text-gray-500">
+                                                {season.episode_count} épisodes
+                                            </span>
+                                        </div>
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* Sélecteur de ÉPISODE */}
+                {/* 🔥 Sélecteur de ÉPISODE */}
                 <div className="relative flex-1 min-w-[150px]">
                     <button
                         onClick={() => {
@@ -278,13 +255,11 @@ const SeasonEpisodeSelector = ({
             {/* Affichage de l'épisode actuel */}
             <div className="text-xs text-gray-500/70 px-1">
                 <span>
-                    Saison {selectedSeason} • {currentEpisodeTitle}
+                    Saison {selectedSeason} • Épisode {selectedEpisode}
+                    {seasonEpisodes.find(e => e.episode_number === selectedEpisode)?.title && 
+                        ` — ${seasonEpisodes.find(e => e.episode_number === selectedEpisode)?.title}`
+                    }
                 </span>
-            </div>
-
-            {/* Debug - Afficher les données reçues */}
-            <div className="text-[10px] text-gray-600/50 px-1 mt-2 border-t border-gray-800/50 pt-2">
-                <span>Debug: {seasons?.length || 0} saisons reçues</span>
             </div>
         </div>
     );
